@@ -3,7 +3,7 @@
 // @namespace    https://github.com/opencode/session-reveal
 // @version      1.0.0
 // @description  Discover and reveal OpenCode sessions through an in-page overlay.
-// @match        https://code.laurenceputra.com
+// @match        https://code.laurenceputra.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -19,9 +19,9 @@
   // - Leave allowedAppHosts empty to allow any host matched by @match.
   // - Set defaultOpencodeBaseUrl when API host differs from current page origin.
   const USER_CONFIG = Object.freeze({
-    allowedAppHosts: ["https://code.laurenceputra.com"],
+    allowedAppHosts: ["code.laurenceputra.com"],
     defaultOpencodeBaseUrl: 'https://code.laurenceputra.com',
-    defaultDirectory: '/',
+    defaultDirectory: '',
     defaultBasicAuthUsername: '',
     defaultBasicAuthPassword: '',
   });
