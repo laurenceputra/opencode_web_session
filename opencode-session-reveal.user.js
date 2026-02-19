@@ -438,7 +438,29 @@
   }
 
   async function rawRequest(payload) {
-    if (typeof GM_xmlhttpRequest === 'function') {
+    const canUseGm = typeof GM_xmlhttpRequest === 'function';
+    let sameOrigin = false;
+    try {
+      const requestOrigin = new URL(payload.url, window.location.href).origin;
+      sameOrigin = requestOrigin === window.location.origin;
+    } catch (_error) {
+      sameOrigin = false;
+    }
+
+    // Prefer page-context fetch for same-origin requests so existing browser
+    // session/auth state is reused. Fall back to GM request when needed.
+    if (sameOrigin) {
+      try {
+        return await fetchRequest(payload);
+      } catch (error) {
+        if (!canUseGm) {
+          throw error;
+        }
+        return gmRequest(payload);
+      }
+    }
+
+    if (canUseGm) {
       return gmRequest(payload);
     }
     return fetchRequest(payload);
