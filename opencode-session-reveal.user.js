@@ -3,10 +3,7 @@
 // @namespace    https://github.com/opencode/session-reveal
 // @version      1.0.0
 // @description  Discover and reveal OpenCode sessions through an in-page overlay.
-// @match        http://localhost:*/*
-// @match        https://localhost:*/*
-// @match        http://127.0.0.1:*/*
-// @match        https://127.0.0.1:*/*
+// @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -17,6 +14,18 @@
 (function () {
   'use strict';
 
+  // User-editable defaults (kept near top intentionally).
+  // - Set allowedAppHosts to an explicit list (["app.example.com"]) to only run on those hosts.
+  // - Leave allowedAppHosts empty to allow any host matched by @match.
+  // - Set defaultOpencodeBaseUrl when API host differs from current page origin.
+  const USER_CONFIG = Object.freeze({
+    allowedAppHosts: [],
+    defaultOpencodeBaseUrl: '',
+    defaultDirectory: '',
+    defaultBasicAuthUsername: '',
+    defaultBasicAuthPassword: '',
+  });
+
   const STORAGE_NAMESPACE = 'opencodeSessionReveal.v1';
   const STORAGE_KEY_CONFIG = `${STORAGE_NAMESPACE}.config`;
   const LEGACY_CONFIG_KEYS = ['opencodeSessionRevealConfig', 'opencodeSessionImportConfig'];
@@ -24,10 +33,14 @@
   const DEFAULT_LIST_LIMIT = 100;
 
   const DEFAULT_CONFIG = Object.freeze({
-    opencodeBaseUrl: '',
-    directory: '',
-    basicAuthUsername: '',
-    basicAuthPassword: '',
+    opencodeBaseUrl: normalizeString(USER_CONFIG.defaultOpencodeBaseUrl),
+    directory: normalizeString(USER_CONFIG.defaultDirectory),
+    basicAuthUsername: normalizeString(USER_CONFIG.defaultBasicAuthUsername),
+    basicAuthPassword:
+      normalizeString(USER_CONFIG.defaultBasicAuthUsername) &&
+      typeof USER_CONFIG.defaultBasicAuthPassword === 'string'
+        ? USER_CONFIG.defaultBasicAuthPassword
+        : '',
   });
 
   const state = {
@@ -107,6 +120,9 @@
     if (window.top !== window.self) {
       return;
     }
+    if (!isAllowedCurrentHost()) {
+      return;
+    }
 
     injectStyles();
     mountOverlay();
@@ -134,7 +150,32 @@
     }
   }
 
+  function normalizedAllowedHosts() {
+    if (!Array.isArray(USER_CONFIG.allowedAppHosts)) {
+      return [];
+    }
+    return USER_CONFIG.allowedAppHosts
+      .map((entry) => normalizeString(entry).toLowerCase())
+      .filter(Boolean);
+  }
+
+  function isAllowedCurrentHost() {
+    const allowedHosts = normalizedAllowedHosts();
+    if (allowedHosts.length === 0) {
+      return true;
+    }
+    const currentHost = normalizeString(window.location.host).toLowerCase();
+    return allowedHosts.includes(currentHost);
+  }
+
   function detectDefaultBaseUrl() {
+    if (normalizeString(USER_CONFIG.defaultOpencodeBaseUrl)) {
+      try {
+        return validateBaseUrl(USER_CONFIG.defaultOpencodeBaseUrl);
+      } catch (_error) {
+        // Fall through to current origin if the optional default is invalid.
+      }
+    }
     return `${window.location.protocol}//${window.location.host}`;
   }
 
@@ -231,7 +272,7 @@
 
     return {
       ...DEFAULT_CONFIG,
-      opencodeBaseUrl: detectDefaultBaseUrl(),
+      opencodeBaseUrl: normalizeString(DEFAULT_CONFIG.opencodeBaseUrl) || detectDefaultBaseUrl(),
     };
   }
 
